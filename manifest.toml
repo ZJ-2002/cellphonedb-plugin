@@ -1,0 +1,70 @@
+schema_version = 1
+plugin_name = "cellphonedb"
+
+[image]
+# Tier-1 official stack: pip-pinned CellPhoneDB 5.0.1 (MIT) plus the curated
+# interaction database v5.0.0 baked at build time (nodes run network-isolated).
+# The image digest pins the algorithm AND the database together; every run
+# writes cpdb_provenance.json recording versions, database sha256 and params.
+# Image build context: Dockerfile + driver.py in this repo, fixtures/ holds
+# the offline e2e fixture (real LR genes, planted signal).
+reference = "localhost/cellphonedb-official@sha256:9080265fdceb5760a63aefb1aeb8d89e58ff4066640d0519428d7852b25dad93"
+tag = "5.0.1-db5.0.0"
+upstream = "ventolab/cellphonedb 5.0.1 (PyPI, MIT); database ventolab/cellphonedb-data v5.0.0; python:3.11-slim base"
+license = "MIT"
+
+[[nodes]]
+kind = "cellphonedb_statistical_analysis"
+desc = "Official CellPhoneDB v5 permutation-based ligand-receptor interaction inference."
+doc = """
+Input port 0 is a raw-count H5AD (cells x genes, hgnc symbols by default).
+Runs the OFFICIAL cellphonedb statistical_analysis from a digest-pinned
+image whose curated interaction database (v5.0.0) is baked in, so the
+digest pins algorithm AND database together; every run also writes
+cpdb_provenance.json (package version, database sha256, parameters).
+Cluster labels come from the obs column cluster_column; the official
+two-column meta file is derived from it inside the container (I/O
+translation only — no analysis decisions are made outside the official
+code). Official outputs are renamed from their timestamped names to the
+fixed contract below, contents untouched. The official method exposes no
+RNG seed: permutation p-values vary at 1/iterations granularity across
+reruns; this is inherited official behavior, not nondeterminism we
+introduced. score_interactions is fixed true (interaction scores are part
+of the v1 contract). The network is disabled during the run.
+"""
+timeout_secs = 14400
+artifact_prefix = "/artifacts/cellphonedb_statistical_analysis"
+
+[nodes.ports]
+inputs = [{ type = "file", label = "counts_h5ad" }]
+outputs = [
+  { path = "cpdb_pvalues.txt", format = "cpdb_table" },
+  { path = "cpdb_means.txt", format = "cpdb_table" },
+  { path = "cpdb_significant_means.txt", format = "cpdb_table" },
+  { path = "cpdb_deconvoluted.txt", format = "cpdb_table" },
+  { path = "cpdb_deconvoluted_percents.txt", format = "cpdb_table" },
+  { path = "cpdb_interaction_scores.txt", format = "cpdb_table" },
+  { path = "cpdb_provenance.json", format = "cpdb_provenance_json" },
+]
+
+[nodes.params]
+cluster_column = { type = "string", default = "cluster", doc = "obs column holding cluster/cell-type labels" }
+counts_data = { type = "string", default = "hgnc_symbol", doc = "Gene identifier type in var_names: hgnc_symbol, gene_name, or ensembl" }
+iterations = { type = "int", default = 1000, min = 100.0, doc = "Permutation iterations behind the empirical p-values" }
+threshold = { type = "number", default = 0.1, min = 0.0, max = 1.0, doc = "Fraction of cells in a cluster expressing a gene for the interaction to be tested (official default 0.1)" }
+
+[nodes.command]
+interpreter = "python"
+argv = ["/opt/autonomics/driver.py"]
+
+[nodes.command.env]
+CPDB_CLUSTER_COLUMN = "{{ cluster_column }}"
+CPDB_COUNTS_DATA = "{{ counts_data }}"
+CPDB_ITERATIONS = "{{ iterations }}"
+CPDB_THRESHOLD = "{{ threshold }}"
+
+[nodes.resources]
+cpus = 4.0
+memory = "16Gi"
+pids_limit = 512
+shm_size = "2Gi"
