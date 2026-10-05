@@ -8,7 +8,7 @@ plugin_name = "cellphonedb"
 # writes cpdb_provenance.json recording versions, database sha256 and params.
 # Image build context: Dockerfile + driver.py in this repo, fixtures/ holds
 # the offline e2e fixture (real LR genes, planted signal).
-reference = "localhost/cellphonedb-official@sha256:9080265fdceb5760a63aefb1aeb8d89e58ff4066640d0519428d7852b25dad93"
+reference = "ghcr.io/zj-2002/cellphonedb@sha256:997126a941d1db4d9f98231a97901611915276e140ad2bf183fbfae848c08347"
 tag = "5.0.1-db5.0.0"
 upstream = "ventolab/cellphonedb 5.0.1 (PyPI, MIT); database ventolab/cellphonedb-data v5.0.0; python:3.11-slim base"
 license = "MIT"
@@ -64,6 +64,7 @@ CPDB_ITERATIONS = "{{ iterations }}"
 CPDB_THRESHOLD = "{{ threshold }}"
 
 [nodes.resources]
+network = "isolated"
 cpus = 4.0
 memory = "16Gi"
 pids_limit = 512
