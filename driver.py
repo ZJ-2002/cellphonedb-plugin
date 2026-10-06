@@ -77,8 +77,22 @@ def main():
         output_path=out_dir,
     )
     seed = env_typed("CPDB_SEED", None, int)
-    if seed is not None:
-        kwargs["seed"] = seed
+    if seed is not None and seed >= 0:
+        # Official v5.0.1 exposes `debug_seed` (default -1) — NOT `seed`. It
+        # is documented as a testing-only seed honored in single-threaded
+        # mode: the complex method calls numpy.random.seed(debug_seed) once
+        # and does NOT pin threads, so with the default threads=4 workers
+        # race the global RNG and the run is still not reproducible.
+        # Passing a seed therefore also pins threads=1 — the only officially
+        # supported reproducible configuration. No claim is made that
+        # multi-threaded permutations are reproducible; unseeded runs keep
+        # official defaults (threads=4) and permutation p-values vary at
+        # 1/iterations granularity across reruns.
+        kwargs["debug_seed"] = seed
+        kwargs["threads"] = 1
+        print(f"driver: CPDB_SEED={seed} -> debug_seed={seed} with threads=1 "
+              "(official testing-only seed, honored in single-thread mode)",
+              flush=True)
     accepted = set(inspect.signature(cpdb_statistical_analysis_method.call).parameters)
     dropped = sorted(k for k in kwargs if k not in accepted)
     kwargs = {k: v for k, v in kwargs.items() if k in accepted}

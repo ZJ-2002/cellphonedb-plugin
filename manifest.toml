@@ -26,10 +26,15 @@ Cluster labels come from the obs column cluster_column; the official
 two-column meta file is derived from it inside the container (I/O
 translation only — no analysis decisions are made outside the official
 code). Official outputs are renamed from their timestamped names to the
-fixed contract below, contents untouched. The official method exposes no
-RNG seed: permutation p-values vary at 1/iterations granularity across
-reruns; this is inherited official behavior, not nondeterminism we
-introduced. score_interactions is fixed true (interaction scores are part
+fixed contract below, contents untouched. Official v5.0.1 exposes
+debug_seed (default -1), documented as a TESTING-ONLY seed honored in
+single-threaded mode; setting debug_seed (>=0) makes the driver pass it
+through AND pin threads=1 — the only officially supported reproducible
+configuration. Without a seed, official defaults apply (threads=4) and
+permutation p-values vary at 1/iterations granularity across reruns; this
+is inherited official behavior, not nondeterminism we introduced. No claim
+is made that multi-threaded permutations are reproducible.
+score_interactions is fixed true (interaction scores are part
 of the v1 contract). The network is disabled during the run.
 """
 timeout_secs = 14400
@@ -52,6 +57,7 @@ cluster_column = { type = "string", default = "cluster", doc = "obs column holdi
 counts_data = { type = "string", default = "hgnc_symbol", doc = "Gene identifier type in var_names: hgnc_symbol, gene_name, or ensembl" }
 iterations = { type = "int", default = 1000, min = 100.0, doc = "Permutation iterations behind the empirical p-values" }
 threshold = { type = "number", default = 0.1, min = 0.0, max = 1.0, doc = "Fraction of cells in a cluster expressing a gene for the interaction to be tested (official default 0.1)" }
+debug_seed = { type = "int", default = -1, doc = "Official v5.0.1 testing-only RNG seed (single-thread mode): >=0 is passed through as debug_seed AND pins threads=1 (the only officially reproducible configuration); -1 keeps official defaults (threads=4, run-to-run p-values vary)" }
 
 [nodes.command]
 interpreter = "python"
@@ -62,6 +68,7 @@ CPDB_CLUSTER_COLUMN = "{{ cluster_column }}"
 CPDB_COUNTS_DATA = "{{ counts_data }}"
 CPDB_ITERATIONS = "{{ iterations }}"
 CPDB_THRESHOLD = "{{ threshold }}"
+CPDB_SEED = "{{ debug_seed }}"
 
 [nodes.resources]
 network = "isolated"
